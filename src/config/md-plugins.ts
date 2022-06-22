@@ -1,10 +1,12 @@
 export default [
   'Emoji',
-  'Sub',
   'Sup',
+  'Sub',
   'TOC',
   'Ins',
   'Mark',
+  'Katex',
+  'Mermaid',
   'Abbr',
   'Deflist',
   'Footnote',

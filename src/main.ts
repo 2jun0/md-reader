@@ -1,116 +1,184 @@
 import throttle from 'lodash.throttle'
-import Ele from './core/ele'
-import storage from './core/storage'
 import events from './core/events'
+import storage from './core/storage'
+import Ele, { svg } from './core/ele'
 import className from './config/class-name'
-import { mdRender } from './core/markdown'
-import { getHeads, CONTENT_TYPES, setPageTheme } from './shared'
-import toggleIcon from './images/icon_toggle.svg'
+import { getDefaultData, type Data } from './core/data'
+import { mdRender, type MdOptions } from './core/markdown'
+import {
+  getHeads,
+  getRawContainer,
+  setTheme,
+  writeText,
+  CONTENT_TYPES,
+} from './shared'
+import codeIcon from './images/icon_code.svg'
+import sideIcon from './images/icon_side.svg'
+import goTopIcon from './images/icon_go_top.svg'
 import './style/index.less'
-import Data, { getDefaultData } from './core/data'
 
-function main(_data) {
-  let data: Data = getDefaultData()
-  Object.assign(data, _data)
-
-  chrome.runtime.onMessage.addListener(({ type, value }) => {
-    switch (type) {
-      case 'reload':
-        data.enable = value
+function main(data: Data) {
+  const configData = getDefaultData(data)
+  const actions = {
+    reload() {
+      window.location.reload()
+    },
+    updateMdPlugins(value) {
+      reloading = true
+      if (mdRaw) {
+        contentRender(mdRaw, {
+          plugins: value,
+        })
+        renderSide()
+        onScroll()
+      } else {
         window.location.reload()
-        break
-      case 'updateMdPlugins':
-        reloading = true
-        if (mdSource) {
-          contentRender(mdSource, {
-            plugins: value,
-          })
-          renderSide()
-          onScroll()
-        } else {
-          window.location.reload()
-        }
-        reloading = false
-        break
-      case 'updatePageTheme':
-        setPageTheme(value)
-        break
-      case 'toggleRefresh':
-        clearTimeout(pollingTimer)
-        value && polling()
-        break
-    }
+      }
+      reloading = false
+    },
+    updatePageTheme(value) {
+      setTheme(value)
+    },
+    switchRefresh(value) {
+      clearTimeout(pollingTimer)
+      value && polling()
+    },
+    switchCentered(value) {
+      mdContent.classList.toggle('centered', value)
+    },
+  }
+  chrome.runtime.onMessage.addListener(({ type, key, value }) => {
+    configData[key] = value
+    const handler = actions[type]
+    handler && handler(value)
   })
 
-  if (!data.enable || !CONTENT_TYPES.includes(document.contentType)) {
+  if (!configData.enable || !CONTENT_TYPES.includes(document.contentType)) {
     return
   }
 
   let pollingTimer: number = null
   let reloading: boolean = false
-  let mdSource: string = null
+  let mdRaw: string = null
 
-  // init page
-  setPageTheme(data.pageTheme)
-  const mdBody: Ele = new Ele('main', {
-    className: className.MD_BODY,
+  /* init md page */
+  setTheme(configData.pageTheme)
+
+  const rawContainer = getRawContainer()
+  events.init(rawContainer)
+  mdRaw = rawContainer?.textContent
+
+  /* render content */
+  const mdContent = new Ele<HTMLElement>('article', {
+    className: `${className.MD_CONTENT} ${
+      configData.centered ? 'centered' : ''
+    }`,
   })
-  const mdContent: Ele = new Ele('article', {
-    className: className.MD_CONTENT,
-  })
 
-  // parse source
-  const mdSourceEle = events.getContainer()
-  if (mdSourceEle) {
-    mdSource = mdSourceEle.textContent
-  }
-
-  const mdRenderer = target => (code, options?) =>
-    (target.innerHTML = mdRender(code, options))
-
+  const mdRenderer =
+    (target: HTMLElement | Ele) =>
+    (code: string = '', options?: MdOptions) =>
+      (target.innerHTML = mdRender(code, options))
   const contentRender = mdRenderer(mdContent)
-  contentRender(mdSource, {
-    plugins: data.mdPlugins,
-  })
-  mdBody.appendChild(mdContent)
+  contentRender(mdRaw, { plugins: configData.mdPlugins })
 
-  // render md side
-  const mdSide = new Ele('ul', {
-    className: className.MD_SIDE,
-  })
-  let headEleList: HTMLElement[] = []
-  let sideLis: HTMLElement[] = []
-  let df: DocumentFragment = null
+  // code block copy button event
+  mdContent.on(
+    'click',
+    async e => {
+      const button = e.target as HTMLElement
+      if (button.classList.contains(className.COPY_BTN)) {
+        const codeEle = button.parentNode.querySelector('code.hljs')
+        if (codeEle && !button.classList.contains('copied')) {
+          await writeText(codeEle.textContent)
+          button.classList.add('copied')
+          setTimeout(() => button.classList.remove('copied'), 1000)
+        }
+      }
+    },
+    true,
+  )
+
+  const mdBody = new Ele<HTMLElement>(
+    'main',
+    { className: className.MD_BODY },
+    mdContent,
+  )
+
+  /* render side */
+  const mdSide = new Ele<HTMLElement>('ul', { className: className.MD_SIDE })
+  let idCache: { [content: string]: number } = Object.create(null)
+  let headElements: HTMLElement[] = []
+  let sideLiElements: HTMLElement[] = []
+  let df: Ele<DocumentFragment> = null
   let targetIndex: number = null
 
   renderSide()
   setTimeout(onScroll, 0)
   document.addEventListener('scroll', throttle(onScroll, 100))
 
-  // render md toggle button
-  const topBarEle = new Ele('div', {
-    className: className.TOP_BAR_ELE,
+  /* render raw toggle button */
+  const rawToggleBtn = new Ele<HTMLElement>(
+    'button',
+    {
+      className: [className.MD_BUTTON, className.CODE_TOGGLE_BTN],
+      title: 'Toggle raw',
+    },
+    svg(codeIcon),
+  )
+  rawToggleBtn.on('click', () => {
+    events.toggleRaw([mdBody, mdSide])
   })
-  const toggleBtn = new Ele('button', {
-    className: className.TOGGLE_BTN,
-    title: 'Toggle',
+
+  /* render side expand button */
+  const sideExpandBtn = new Ele<HTMLElement>(
+    'button',
+    {
+      className: [className.MD_BUTTON, className.SIDE_EXPAND_BTN],
+      title: 'Expand side',
+    },
+    svg(sideIcon),
+  )
+  sideExpandBtn.on('click', () => {
+    document.body.classList.add('sidebar-expanded')
+    function foldSide(e) {
+      if (e.type === 'keydown' && e.code !== 'Escape') {
+        return
+      }
+      document.body.classList.remove('sidebar-expanded')
+      mdBody.off('click', foldSide)
+      window.removeEventListener('resize', foldSide)
+      document.removeEventListener('keydown', foldSide)
+    }
+    setTimeout(() => {
+      mdBody.on('click', foldSide)
+      window.addEventListener('resize', foldSide)
+      document.addEventListener('keydown', foldSide)
+    }, 0)
   })
-  toggleBtn.addEventListener('click', () => {
-    events.modeChange([mdBody, mdSide])
-  })
+  /* render go top button */
+  const goTopBtn = new Ele<HTMLElement>(
+    'button',
+    {
+      className: [className.MD_BUTTON, className.GO_TOP_BTN],
+      title: 'Go top',
+    },
+    svg(goTopIcon),
+  )
+  goTopBtn.hide()
+  goTopBtn.on('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }))
 
-  const attrs = Object.keys(toggleIcon.attributes)
-    .map(k => `${k}="${toggleIcon.attributes[k]}"`)
-    .join(' ')
+  const buttonWrap = new Ele<HTMLElement>(
+    'div',
+    { className: className.BUTTON_WRAP_ELE },
+    [sideExpandBtn, rawToggleBtn, goTopBtn],
+  )
 
-  toggleBtn.innerHTML = `<svg ${attrs}>${toggleIcon.content}</svg>`
-  topBarEle.appendChild(toggleBtn)
+  /* mount elements */
+  events.mount([buttonWrap, mdBody, mdSide])
 
-  // mount
-  events.mount([mdSide, mdBody, topBarEle])
-
-  // auto refresh
-  if (data.refresh) {
+  /* auto refresh */
+  if (configData.refresh) {
     polling()
   }
 
@@ -119,18 +187,25 @@ function main(_data) {
       clearTimeout(pollingTimer)
       chrome.runtime.sendMessage(
         {
-          type: 'tryReload',
+          type: 'fetch',
           value: window.location.href,
         },
         res => {
           if (res !== undefined) {
-            if (mdSource === null) {
-              mdSource = res
-            } else if (mdSource !== res) {
-              mdSource = res
+            if (mdRaw === undefined || mdRaw === null) {
+              if (res) {
+                window.location.reload()
+                return
+              }
+            } else if (mdRaw !== res) {
+              mdRaw = res
               contentRender(res)
               renderSide()
               onScroll()
+              /* update raw content */
+              setTimeout(() => {
+                rawContainer.textContent = res
+              }, 0)
             }
           }
           pollingTimer = setTimeout(watch, 500)
@@ -139,49 +214,64 @@ function main(_data) {
     })()
   }
 
-  function handleHeadItem(eleList: HTMLElement[], headEle: HTMLElement) {
-    const content = String(headEle.textContent).trim()
+  function renderSide() {
+    idCache = Object.create(null)
+    headElements = getHeads(mdContent)
+    df = new Ele<DocumentFragment>('#document-fragment')
+    sideLiElements = headElements.reduce(handleHeadItem, [])
+    mdSide.innerHTML = null
+    mdSide.appendChild(df)
+  }
 
-    const encodeContent = window.encodeURIComponent(
-      content.toLowerCase().replace(/\s+/g, '-'),
-    )
+  function handleHeadItem(
+    eleList: HTMLElement[],
+    head: HTMLElement,
+  ): HTMLElement[] {
+    const content = String(head.textContent).trim()
+    const encodeContent = getDecodeContent(content)
 
-    headEle.setAttribute('id', encodeContent)
+    head.setAttribute('id', encodeContent)
 
-    const headAnchor = new Ele('a', {
+    const headAnchor = new Ele<HTMLElement>('a', {
       className: className.HEAD_ANCHOR,
       href: `#${encodeContent}`,
     })
     headAnchor.textContent = '#'
-    headEle.insertBefore(headAnchor.ele, headEle.firstChild)
+    head.insertBefore(headAnchor.ele, head.firstChild)
 
-    const a = new Ele('a', {
+    const link = new Ele<HTMLElement>('a', {
+      title: content,
       href: `#${encodeContent}`,
     })
-    a.textContent = content
-    const li = new Ele('li', {
-      className: `md-reader__side-${headEle.tagName.toLowerCase()}`,
+    link.textContent = content
+    const li = new Ele<HTMLElement>('li', {
+      className: `md-reader__side-${head.tagName.toLowerCase()}`,
     })
     eleList.push(li.ele)
-    li.appendChild(a)
+    li.appendChild(link)
     df.appendChild(li.ele)
 
     return eleList
   }
 
-  function renderSide() {
-    headEleList = getHeads(mdContent)
-    df = document.createDocumentFragment()
-    sideLis = headEleList.reduce(handleHeadItem, [])
-    mdSide.innerHTML = null
-    mdSide.appendChild(df)
+  function getDecodeContent(content: string): string {
+    return (function unique(key: string): string {
+      if (key in idCache) {
+        return unique(`${key}-${idCache[key]++}`)
+      } else {
+        idCache[key] = 1
+        return key
+      }
+    })(encodeURIComponent(content.toLowerCase().replace(/\s+/g, '-')))
   }
 
   function onScroll() {
     const documentScrollTop = document.documentElement.scrollTop
-    headEleList.some((_, index) => {
+    goTopBtn.toggle(documentScrollTop >= 640)
+
+    headElements.some((_, index) => {
       let sectionHeight = -20
-      const item = headEleList[index + 1]
+      const item = headElements[index + 1]
       if (item) {
         sectionHeight += item.offsetTop
       }
@@ -189,10 +279,10 @@ function main(_data) {
       const hit = sectionHeight <= 0 || sectionHeight > documentScrollTop
 
       if (hit && (targetIndex !== index || reloading)) {
-        let target = sideLis[targetIndex]
+        let target = sideLiElements[targetIndex]
         target && target.classList.remove(className.MD_SIDE_ACTIVE)
 
-        target = sideLis[(targetIndex = index)]
+        target = sideLiElements[(targetIndex = index)]
         if (target) {
           target.classList.add(className.MD_SIDE_ACTIVE)
           if (target.scrollIntoView) {

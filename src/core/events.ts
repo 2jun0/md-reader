@@ -1,42 +1,39 @@
-import Ele from './ele'
-import { BODY, HEAD, getAssetsURL, getEle, SOURCE_SELECTOR } from '../shared'
+import Ele, { type ElementType } from './ele'
+import { BODY, HEAD, getAssetsURL } from '../shared'
 
-const headTags = [
+const htmlHeadTags = [
   {
     tag: 'link',
     attrs: {
       rel: 'icon',
-      href: getAssetsURL('images/icon128.png'),
+      type: 'image/svg+xml',
+      href: getAssetsURL('images/logo.svg'),
     },
   },
 ]
 
-let isShowMDSource: boolean = true
-let mdSourceEle: HTMLElement = null
-let mdSourceEleDisplay: string = ''
+let container: Ele<HTMLElement> = null
+let showContainerRaw: boolean = true
 
 export default {
-  getContainer() {
-    mdSourceEle = BODY.querySelector(SOURCE_SELECTOR)
-    if (mdSourceEle) {
-      mdSourceEleDisplay = mdSourceEle.style.display
-      mdSourceEle.style.display = 'none'
-
-      headTags.forEach(el => HEAD.appendChild(new Ele(el.tag, el.attrs).ele))
-      BODY.classList.add('md-reader')
+  init(element: HTMLElement) {
+    if (element) {
+      container = new Ele<HTMLElement>(element)
+      container.hide()
     }
-
-    return mdSourceEle
+    htmlHeadTags.forEach(el => HEAD.appendChild(new Ele(el.tag, el.attrs).ele))
+    BODY.classList.add('md-reader')
   },
-  mount(nodes: Array<HTMLElement | Ele>) {
-    nodes.forEach(node => BODY.appendChild(getEle(node)))
+  mount(nodes: Array<ElementType | Ele>) {
+    nodes.forEach(node => BODY.appendChild(Ele.from(node)))
   },
-  modeChange(eles: Array<Ele>) {
-    isShowMDSource = !isShowMDSource
-
+  toggleRaw(eles: Array<Ele>) {
     BODY.classList.toggle('md-reader')
-    eles.forEach(ele => ele.toggle(isShowMDSource))
 
-    mdSourceEle.style.display = isShowMDSource ? 'none' : mdSourceEleDisplay
+    if (container) {
+      container.toggle(showContainerRaw)
+    }
+    showContainerRaw = !showContainerRaw
+    eles.forEach(ele => ele.toggle(showContainerRaw))
   },
 }

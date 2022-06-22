@@ -1,4 +1,5 @@
 import storage from './core/storage'
+import { fetch } from './shared'
 
 chrome.runtime.onMessage.addListener(({ type, value }, _sender, callback) => {
   switch (type) {
@@ -6,7 +7,7 @@ chrome.runtime.onMessage.addListener(({ type, value }, _sender, callback) => {
       storage.set({ [value.key]: value.value })
       updatePage(value.key, value.value)
       break
-    case 'tryReload':
+    case 'fetch':
       fetch(value)
         .then((res: XMLHttpRequest) => callback && callback(res.responseText))
         .catch(err => {
@@ -18,45 +19,20 @@ chrome.runtime.onMessage.addListener(({ type, value }, _sender, callback) => {
   return true
 })
 
-function fetch(url: string, method: string = 'GET', params?): Promise<any> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest()
-    xhr.onreadystatechange = ({ target }) => {
-      const { readyState, status } = xhr
-      if (readyState === xhr.DONE) {
-        if (status === 0 || (status >= 200 && status < 400)) {
-          resolve(target)
-        } else {
-          reject(new Error('Request failed'))
-        }
-      }
-    }
-    xhr.onerror = reject
-    xhr.open(method, url)
-    xhr.send(params)
-  })
+const actions = {
+  enable: 'reload',
+  refresh: 'switchRefresh',
+  centered: 'switchCentered',
+  mdPlugins: 'updateMdPlugins',
+  pageTheme: 'updatePageTheme',
 }
 
-function updatePage(type: string, value: any) {
-  let action: string
-  switch (type) {
-    case 'enable':
-      action = 'reload'
-      break
-    case 'mdPlugins':
-      action = 'updateMdPlugins'
-      break
-    case 'pageTheme':
-      action = 'updatePageTheme'
-      break
-    case 'refresh':
-      action = 'toggleRefresh'
-      break
-  }
+function updatePage(key: string, value: any) {
+  const action = actions[key]
 
   action &&
     chrome.tabs.query({ currentWindow: true, active: true }, tabs => {
       tabs.length &&
-        chrome.tabs.sendMessage(tabs[0].id, { type: action, value })
+        chrome.tabs.sendMessage(tabs[0].id, { type: action, key, value })
     })
 }

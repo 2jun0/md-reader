@@ -3,7 +3,11 @@ export default {
   MD_SIDE: 'md-reader__side',
   MD_SIDE_ACTIVE: 'md-reader__side-li--active',
   MD_CONTENT: 'md-reader__markdown-content',
-  TOP_BAR_ELE: 'md-reader__top',
+  MD_BUTTON: 'md-reader__btn',
   HEAD_ANCHOR: 'md-reader__head-anchor',
-  TOGGLE_BTN: 'md-reader__btn md-reader__btn--toggle',
+  BUTTON_WRAP_ELE: 'md-reader__button-wrap',
+  CODE_TOGGLE_BTN: 'md-reader__btn--code-toggle',
+  SIDE_EXPAND_BTN: 'md-reader__btn--side-expand',
+  GO_TOP_BTN: 'md-reader__btn--go-top',
+  COPY_BTN: 'md-reader__btn--copy',
 }

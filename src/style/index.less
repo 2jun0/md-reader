@@ -1,9 +1,5 @@
 @import url('./variable.less');
 
-.head-padding (@l) {
-  padding-left: 0.618em * (@l - 1);
-}
-
 body.md-reader {
   margin: 0;
   padding: 0;
@@ -12,9 +8,13 @@ body.md-reader {
     Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  * {
+  // Automatic equation numbers for some environments.
+  // Use parallel counters for HTML and MathML.
+  counter-reset: katexEqnNo mmlEqnNo;
+  *:not(.mermaid *) {
     box-sizing: border-box;
   }
+
   .md-reader {
     &__side {
       overflow: auto;
@@ -22,17 +22,21 @@ body.md-reader {
       top: 0;
       bottom: 0;
       left: 0;
+      width: 260px;
       line-height: 1.4;
       font-size: 14px;
-      width: 260px;
-      padding: 20px 26px;
+      padding: 22px 0;
       border-right: 1px solid var(--color-side-border);
       margin: 0;
       list-style: none;
-      color: var(--color-text-primary);
+      color: var(--color-side);
       background: var(--color-side-bg);
+      transition: 0.3s;
+      transition-property: box-shadow, transform;
+      will-change: transform;
+      z-index: 1;
+      .scrollbar();
       li {
-        word-wrap: break-word;
         &.md-reader__side-li--active {
           a {
             font-weight: bolder;
@@ -40,46 +44,63 @@ body.md-reader {
           }
         }
         a {
-          display: block;
-          padding: 0.3em 0;
+          overflow: hidden;
+          display: -webkit-box;
+          padding: 0.3em 1.6em 0.3em 0;
+          word-break: break-all;
+          text-overflow: ellipsis;
           text-decoration: none;
+          transition: color 0.1s;
           color: inherit;
+          -webkit-box-orient: vertical;
+          -webkit-line-clamp: 2;
           &:hover {
             color: var(--color-primary);
           }
         }
         &.md-reader__side {
-          &-h1 {
-            .head-padding(1);
+          .head-indent (@l) {
+            padding-left: 0.618em * (@l - 1) + 1.6em;
           }
-          &-h2 {
-            .head-padding(2);
+          &-h1 a {
+            .head-indent(1);
+            font-size: 1.02em;
+            font-weight: bolder;
           }
-          &-h3 {
-            .head-padding(3);
+          &-h2 a {
+            .head-indent(2);
+            font-size: 1.01em;
+            font-weight: bolder;
           }
-          &-h4 {
-            .head-padding(4);
+          &-h3 a {
+            .head-indent(3);
           }
-          &-h5 {
-            .head-padding(5);
+          &-h4 a {
+            .head-indent(4);
           }
-          &-h6 {
-            .head-padding(6);
+          &-h5 a {
+            .head-indent(5);
+          }
+          &-h6 a {
+            .head-indent(6);
           }
         }
       }
     }
 
     &__body {
+      min-height: 100vh;
       padding-left: 260px;
+      transition: padding 0.3s;
       .md-reader__markdown-content {
-        max-width: 900px;
-        padding: 30px 50px 40px;
+        padding: 30px 70px 40px;
         margin: auto;
         color: var(--color-text-primary);
-
-        @import url('./theme/theme-juejin');
+        transition: max-width 0.1s;
+        &.centered {
+          max-width: 900px;
+        }
+        .theme(); // markdown theme
         h1,
         h2,
         h3,
@@ -95,6 +116,7 @@ body.md-reader {
             border: none;
             cursor: pointer;
             color: var(--color-primary);
+            transition: opacity 0.3s;
           }
           &:hover {
             .md-reader__head-anchor {
@@ -102,78 +124,170 @@ body.md-reader {
             }
           }
         }
+        // code-block copy button
+        pre.md-reader__code-block {
+          position: relative;
+          code {
+            &:empty + .md-reader__btn--copy {
+              display: none;
+            }
+            &::before {
+              transition: opacity 0.2s;
+            }
+          }
+          &:hover {
+            code::before {
+              opacity: 0;
+            }
+            .md-reader__btn--copy {
+              opacity: 1;
+            }
+          }
+        }
+      }
+    }
+
+    &__btn {
+      &--side-expand {
+        display: initial;
       }
     }
 
     @media screen and (max-width: 960px) {
+      &__side {
+        transform: translateX(-100%);
+      }
       &__body {
         padding-left: 0px;
       }
-      &__side {
-        display: none;
+      &__btn--side-expand {
+        transform: translateX(0);
       }
     }
     @media screen and (min-width: 1660px) {
       &__body {
-        .md-reader__markdown-content {
+        .md-reader__markdown-content.centered {
           max-width: 1200px;
         }
       }
     }
-  }
-  &.page-theme--dark {
-    .md-reader {
-      &__btn {
-        &--toggle {
-          background: rgba(68, 68, 68, 0.4);
-          color: fade(#abb2bf, 70%);
-          &:hover,
-          &:active {
-            background: rgba(68, 68, 68, 0.6);
-            color: #abb2bf;
-          }
+    @media screen and (min-width: 2048px) {
+      &__body {
+        .md-reader__markdown-content.centered {
+          max-width: 1600px;
         }
+      }
+    }
+  }
+
+  &.sidebar-expanded {
+    .md-reader {
+      &__side {
+        box-shadow: var(--color-side-shadow);
+        transform: translateX(0);
+      }
+      &__btn--side-expand {
+        transform: translateX(-50px);
       }
     }
   }
 }
 
 .md-reader {
-  &__top {
+  // buttons
+  &__button-wrap {
     position: fixed;
-    top: 20px;
-    right: 40px;
+    height: 0;
+    top: 16px;
+    left: 0;
+    right: 0;
     z-index: 1;
   }
 
   &__btn {
-    outline: none;
-    font-size: 12px;
-    border-radius: 100%;
+    width: 32px;
+    height: 32px;
+    padding: 7px;
+    border-radius: 10px;
     border: none;
+    outline: none;
     cursor: pointer;
-    transition: 0.1s;
-    &:not(:last-child) {
-      margin-right: 10px;
-      margin-bottom: 10px;
+    transition: background 0.1s, color 0.1s;
+    backdrop-filter: blur(3px);
+    background: var(--color-button-bg);
+    color: var(--color-button);
+    &:hover {
+      background: var(--color-button-bg-hover);
+      color: var(--color-button-hover);
     }
-    &--toggle {
-      width: 40px;
-      height: 40px;
-      padding: 10px;
-      background: rgba(241, 241, 241, 0.5);
-      background-origin: content-box;
-      color: fade(#586069, 40%);
-      backdrop-filter: blur(3px);
-      &:hover,
-      &:active {
-        background: rgba(241, 241, 241, 0.8);
-        color: fade(#586069, 60%);
-      }
+    &:active {
+      background: var(--color-button-bg-active);
+      color: var(--color-button-active);
       svg {
-        width: 100%;
-        height: 100%;
-        fill: currentColor;
+        transform: scale(0.95);
+      }
+    }
+    svg {
+      width: 100%;
+      height: 100%;
+      fill: currentColor;
+      transition: 0.1s;
+      transition-property: transform, color;
+      transform-origin: center center;
+      pointer-events: none;
+      * {
+        pointer-events: none;
+      }
+    }
+    &--code-toggle {
+      position: absolute;
+      right: 16px;
+    }
+    &--side-expand {
+      display: none;
+      position: absolute;
+      left: 16px;
+      transition: background 0.1s, color 0.1s, transform 0.3s;
+      transform: translateX(-50px);
+    }
+    &--go-top {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+    }
+    &--copy {
+      opacity: 0;
+      position: absolute;
+      top: 6px;
+      right: 10px;
+      width: 30px;
+      height: 30px;
+      transition: opacity 0.2s, background 0.1s, color 0.1s;
+      z-index: 1;
+      background: var(--color-button_copy-bg);
+      color: var(--color-button_copy);
+      &:hover {
+        background: var(--color-button_copy-bg-hover);
+        color: var(--color-button_copy-hover);
+      }
+      &:active {
+        background: var(--color-button_copy-bg-active);
+        color: var(--color-button_copy-active);
+      }
+      svg.icon-copy {
+        display: initial;
+      }
+      svg.icon-success {
+        color: var(--color-success);
+        display: none;
+      }
+      &.copied {
+        svg.icon-copy {
+          display: none;
+        }
+        svg.icon-success {
+          display: initial;
+        }
       }
     }
   }

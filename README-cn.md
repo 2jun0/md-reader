@@ -1,12 +1,12 @@
 # md-reader
 
-<img src="./src/images/icon.png" align="right" width="120">
+<img src="./src/images/logo.svg" align="right" width="120">
 
 [English](./README.md) | 中文 | [한국어](./README-ko.md)
 
 [![](https://badgen.net/chrome-web-store/v/medapdbncneneejhbgcjceippjlfkmkg?icon=chrome&color=607cd2)](https://chrome.google.com/webstore/detail/md-reader/medapdbncneneejhbgcjceippjlfkmkg) [![](https://badgen.net/chrome-web-store/stars/medapdbncneneejhbgcjceippjlfkmkg?icon=chrome&color=607cd2)](https://chrome.google.com/webstore/detail/md-reader/medapdbncneneejhbgcjceippjlfkmkg) [![](https://badgen.net/chrome-web-store/users/medapdbncneneejhbgcjceippjlfkmkg?icon=chrome&color=607cd2)](https://chrome.google.com/webstore/detail/md-reader/medapdbncneneejhbgcjceippjlfkmkg)
 
-一个可以使 Chrome 预览 MarkDown 文件的扩展程序。
+一个可以使 Chrome 预览 markdown 文件的扩展程序。
 
 > 支持浏览 `file://` `http://` `https://` 链接以及 `*.md` `*.mkd` `*.markdown` 扩展名文件。
 
@@ -30,13 +30,13 @@
 1. 克隆 `md-reader` 仓库到本地并编译:
 
     ```bash
-    # 클론 저장소
+    # 克隆本仓库
     git clone https://github.com/Heroor/md-reader.git && cd md-reader
 
-    # 설치 종속성
+    # 安装依赖
     pnpm install
 
-    # 확장 패키지를 빌드하다
+    # 构建扩展程序
     pnpm build
     ```
 
@@ -63,13 +63,13 @@
 ## 开发
 
 ```bash
-# 클론 저장소
+# 克隆本仓库
 git clone https://github.com/Heroor/md-reader.git && cd md-reader
 
-# 설치 종속성
+# 安装依赖
 pnpm install
 
-# 개발 서비스 시작
+# 启动开发环境
 pnpm dev
 ```
 
